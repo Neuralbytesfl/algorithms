@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Integer Sorting Utility</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --panel: #181a20;
+      --panel-2: #222632;
+      --text: #f4f1ea;
+      --muted: #a7adbb;
+      --line: #343946;
+      --green: #4dd78a;
+      --gold: #ffc857;
+      --red: #ff6b6b;
+      --blue: #5aa7ff;
+      --cyan: #55d6d2;
+      --purple: #b985ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(135deg, #101114 0%, #151922 52%, #101114 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 18px;
+      padding: 24px;
+    }
+
+    header,
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 52px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .pulse {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 0 rgba(77, 215, 138, 0.45);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      70% {
+        box-shadow: 0 0 0 16px rgba(77, 215, 138, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(77, 215, 138, 0);
+      }
+    }
+
+    .top-meta {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: end;
+    }
+
+    .author {
+      display: grid;
+      gap: 2px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(24, 26, 32, 0.78);
+      text-align: right;
+    }
+
+    .author strong {
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .author span,
+    .slide-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .slide-count {
+      font-size: 14px;
+      text-transform: none;
+    }
+
+    .slides {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(16, 17, 20, 0.72);
+      box-shadow: 0 24px 90px rgba(0, 0, 0, 0.28);
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      gap: 22px;
+      align-content: center;
+      padding: clamp(24px, 4vw, 64px);
+      opacity: 0;
+      transform: translateX(4%);
+      pointer-events: none;
+      transition: opacity 420ms ease, transform 420ms ease;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 1050px;
+      font-size: clamp(46px, 7.2vw, 118px);
+      line-height: 0.92;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: clamp(34px, 4.8vw, 76px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: clamp(18px, 2vw, 28px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 950px;
+      color: var(--muted);
+      font-size: clamp(18px, 2vw, 28px);
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tile {
+      min-width: 0;
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(24, 26, 32, 0.9);
+    }
+
+    .tile strong {
+      font-size: clamp(22px, 2.8vw, 44px);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tile span,
+    .tile p {
+      color: var(--muted);
+      font-size: clamp(14px, 1.2vw, 18px);
+      line-height: 1.35;
+    }
+
+    .tile.highlight {
+      border-color: rgba(77, 215, 138, 0.72);
+      background: rgba(31, 64, 47, 0.38);
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+      counter-reset: step;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(24, 26, 32, 0.88);
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--gold);
+      color: #111318;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: clamp(17px, 1.6vw, 24px);
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: clamp(14px, 1.2vw, 18px);
+      line-height: 1.35;
+    }
+
+    .meter {
+      position: relative;
+      height: 18px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #0d0f14;
+      border: 1px solid var(--line);
+    }
+
+    .fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--w, 50%);
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      animation: breathe 2.6s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      50% {
+        filter: brightness(1.18);
+      }
+    }
+
+    .compare-row {
+      display: grid;
+      grid-template-columns: 160px 1fr 110px;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: clamp(15px, 1.4vw, 20px);
+      font-weight: 800;
+    }
+
+    .big-number {
+      display: flex;
+      align-items: end;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .big-number strong {
+      color: var(--green);
+      font-size: clamp(52px, 9vw, 146px);
+      line-height: 0.86;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .big-number span {
+      max-width: 360px;
+      color: var(--muted);
+      font-size: clamp(17px, 1.7vw, 24px);
+      line-height: 1.25;
+    }
+
+    .bench {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.3fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    input,
+    select,
+    button {
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      font-weight: 800;
+      padding: 0 12px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button.primary {
+      color: #111318;
+      background: var(--text);
+      border-color: var(--text);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+
+    .results {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .result-line {
+      display: grid;
+      grid-template-columns: 170px 1fr 120px;
+      gap: 12px;
+      align-items: center;
+      min-height: 44px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(24, 26, 32, 0.86);
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .result-line output {
+      color: var(--text);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bars-demo {
+      height: 330px;
+      display: flex;
+      align-items: end;
+      gap: 10px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(to top, rgba(255, 255, 255, 0.045) 1px, transparent 1px) 0 0 / 100% 20%,
+        #12141a;
+    }
+
+    .bar {
+      flex: 1;
+      min-width: 12px;
+      border-radius: 6px 6px 2px 2px;
+      background: linear-gradient(180deg, var(--blue), #2c65b8);
+      transition: height 520ms ease, background 220ms ease, transform 220ms ease;
+    }
+
+    .bar.hot {
+      background: linear-gradient(180deg, var(--gold), #bc7d19);
+      transform: translateY(-12px);
+    }
+
+    .bar.done {
+      background: linear-gradient(180deg, var(--green), #1f8b53);
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: clamp(14px, 1.2vw, 18px);
+      line-height: 1.4;
+    }
+
+    .nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .progress {
+      position: relative;
+      flex: 1 1 180px;
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #0d0f14;
+      border: 1px solid var(--line);
+    }
+
+    .progress span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--progress, 0%);
+      background: var(--green);
+      transition: width 260ms ease;
+    }
+
+    code {
+      color: var(--cyan);
+    }
+
+    @media (max-width: 1000px) {
+      body {
+        overflow: auto;
+      }
+
+      .deck {
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .slides {
+        min-height: 1180px;
+      }
+
+      .slide {
+        align-content: start;
+      }
+
+      .grid,
+      .grid.three,
+      .grid.two,
+      .bench {
+        grid-template-columns: 1fr;
+      }
+
+      .compare-row,
+      .result-line {
+        grid-template-columns: 1fr;
+      }
+
+      .result-line output {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <header>
+      <div class="brand"><span class="pulse"></span>Integer Sorting Utility</div>
+      <div class="top-meta">
+        <div class="author">
+          <strong>Jose Diaz</strong>
+          <span>experiment log</span>
+        </div>
+        <div class="slide-count"><span id="slideNow">1</span>/<span id="slideTotal">9</span></div>
+      </div>
+    </header>
+
+    <main class="slides" id="slides">
+      <section class="slide active">
+        <h1>My experiment: faster sorting for 32-bit integers.</h1>
+        <p class="lead">I was not trying to replace every sorting algorithm. I had a narrower question: if the data is only 32-bit integers, can I do better than a general-purpose comparison sort? With help from AI, I built and tested that idea.</p>
+        <div class="big-number">
+          <strong>178M</strong>
+          <span>integers per second on the best sustained short run for the stable single-thread <code>radix16_reuse</code> path.</span>
+        </div>
+      </section>
+
+      <section class="slide">
+        <h2>The constraint changed the problem.</h2>
+        <p class="lead">A normal sort must work for almost anything: objects, strings, custom comparison functions, and mixed data. My utility focuses on one shape: random 32-bit signed integers.</p>
+        <div class="grid three">
+          <article class="tile">
+            <h3>Known type</h3>
+            <strong>Int32</strong>
+            <span>Every value has exactly 32 bits.</span>
+          </article>
+          <article class="tile">
+            <h3>Known operation</h3>
+            <strong>sort</strong>
+            <span>No custom comparator or object fields.</span>
+          </article>
+          <article class="tile highlight">
+            <h3>Opportunity</h3>
+            <strong>bucket</strong>
+            <span>Use integer digits instead of pairwise comparisons.</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="slide">
+        <h2>First: the classic algorithms.</h2>
+        <div class="grid">
+          <article class="tile">
+            <h3>Bubble Sort</h3>
+            <p>Simple neighbor swaps. Easy to teach, slow for large data.</p>
+            <strong>O(n²)</strong>
+          </article>
+          <article class="tile">
+            <h3>Selection Sort</h3>
+            <p>Find the smallest remaining item and place it next.</p>
+            <strong>O(n²)</strong>
+          </article>
+          <article class="tile">
+            <h3>Insertion Sort</h3>
+            <p>Fast for tiny or nearly sorted arrays, but shifts items.</p>
+            <strong>O(n²)</strong>
+          </article>
+          <article class="tile">
+            <h3>Merge Sort</h3>
+            <p>Reliable divide and merge. General-purpose and stable.</p>
+            <strong>O(n log n)</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="slide">
+        <h2>The optimization: stop comparing every pair.</h2>
+        <p class="lead">For plain integers, we can sort by digits/buckets instead of asking “is A less than B?” over and over. That is why radix and counting strategies can beat general comparison sorts.</p>
+        <div class="grid three">
+          <article class="tile">
+            <h3>Comparison Sort</h3>
+            <p>Works on any comparable object. Used by <code>std::sort</code>.</p>
+            <strong>47 ms</strong>
+            <span>1M random ints, measured here</span>
+          </article>
+          <article class="tile">
+            <h3>Radix Sort</h3>
+            <p>Integer-specific. Sorts using fixed-width key chunks.</p>
+            <strong>5-6 ms</strong>
+            <span>best single-thread path</span>
+          </article>
+          <article class="tile highlight">
+            <h3>Adaptive Utility</h3>
+            <p>Detects sorted, reverse, compact range, or random-like data.</p>
+            <strong>8x</strong>
+            <span>sustained speedup over <code>std::sort</code></span>
+          </article>
+        </div>
+      </section>
+
+      <section class="slide">
+        <h2>What radix16 reuse does differently.</h2>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <strong>Convert signed order into sortable unsigned keys.</strong>
+              <span>Each value is transformed with <code>value ^ 0x80000000</code>, so negative and positive signed integers sort correctly by unsigned digit order.</span>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>Split each 32-bit integer into two 16-bit chunks.</strong>
+              <span>The low 16 bits form one bucket pass, then the high 16 bits form the second pass. That means only two data passes are needed for the key width.</span>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>Count buckets, prefix them, then scatter values.</strong>
+              <span>The algorithm counts how many values land in each bucket, converts counts into output positions, and writes values directly into their sorted regions.</span>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>Reuse scratch memory across sort calls.</strong>
+              <span>The fast utility keeps the temporary array and bucket counters ready instead of reallocating them every time. That reduces memory pressure during repeated workloads.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <h2>Why it works.</h2>
+        <div class="grid two">
+          <article class="tile highlight">
+            <h3>Less branching</h3>
+            <p><code>std::sort</code> repeatedly asks comparison questions. Radix sorting mostly performs predictable counting and memory writes.</p>
+          </article>
+          <article class="tile highlight">
+            <h3>Fixed number of passes</h3>
+            <p>For 32-bit integers, the key width is fixed. The sorter does two 16-bit passes instead of growing with comparison complexity.</p>
+          </article>
+          <article class="tile">
+            <h3>Tradeoff</h3>
+            <p>It uses extra memory for scratch buffers and counters. The 60-second run peaked around 43 MB RSS.</p>
+          </article>
+          <article class="tile">
+            <h3>Boundary</h3>
+            <p>This is not a universal replacement. For objects, strings, custom comparators, or stable ordering rules, general sorts still matter.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="slide">
+        <h2>60-second utility stress result.</h2>
+        <div class="tile">
+          <div class="compare-row">
+            <span>std::sort</span>
+            <div class="meter"><div class="fill" style="--w: 12%"></div></div>
+            <span>20.8M/s</span>
+          </div>
+          <div class="compare-row">
+            <span>adaptive_int_sort</span>
+            <div class="meter"><div class="fill" style="--w: 100%"></div></div>
+            <span>169.1M/s</span>
+          </div>
+        </div>
+        <div class="grid three">
+          <article class="tile">
+            <h3>Input</h3>
+            <strong>1,000,000</strong>
+            <span>random integers per batch</span>
+          </article>
+          <article class="tile">
+            <h3>Duration</h3>
+            <strong>60 sec</strong>
+            <span>sustained workload, repeated batches</span>
+          </article>
+          <article class="tile">
+            <h3>Memory</h3>
+            <strong>~43 MB</strong>
+            <span>peak RSS for adaptive utility test</span>
+          </article>
+        </div>
+        <p class="note">The higher memory use is expected: radix-style integer sorting uses scratch buffers to buy throughput.</p>
+      </section>
+
+      <section class="slide">
+        <h2>Live JavaScript test.</h2>
+        <p class="lead">This runs in your browser using typed arrays. JavaScript will usually be slower than the C++ benchmark, but this is the closest browser-native version: <code>Int32Array.sort()</code> versus a pure JavaScript 16-bit radix sorter.</p>
+        <div class="bench">
+          <div class="tile controls">
+            <label>
+              Integers
+              <select id="benchSize">
+                <option value="100000">100,000</option>
+                <option value="250000" selected>250,000</option>
+                <option value="500000">500,000</option>
+                <option value="1000000">1,000,000</option>
+              </select>
+            </label>
+            <label>
+              Seconds
+              <select id="benchSeconds">
+                <option value="2">2</option>
+                <option value="4" selected>4</option>
+                <option value="8">8</option>
+              </select>
+            </label>
+            <button class="primary" id="runBench">Run Browser Benchmark</button>
+            <p class="note">The page stays single-file. Larger sizes may pause the tab while the benchmark runs.</p>
+          </div>
+          <div class="results">
+            <div class="result-line">
+              <span>JS radix16</span>
+              <div class="meter"><div class="fill" id="radixFill" style="--w: 0%"></div></div>
+              <output id="radixOut">not run</output>
+            </div>
+            <div class="result-line">
+              <span>Int32Array.sort</span>
+              <div class="meter"><div class="fill" id="nativeFill" style="--w: 0%"></div></div>
+              <output id="nativeOut">not run</output>
+            </div>
+            <div class="result-line">
+              <span>Winner</span>
+              <div class="meter"><div class="fill" id="winnerFill" style="--w: 0%"></div></div>
+              <output id="winnerOut">waiting</output>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <h2>Where I take it next.</h2>
+        <div class="grid three">
+          <article class="tile">
+            <h3>More data shapes</h3>
+            <p>Test negative-heavy ranges, small ranges, nearly sorted batches, duplicated values, and streaming workloads.</p>
+          </article>
+          <article class="tile">
+            <h3>More algorithms</h3>
+            <p>Keep comparing radix, counting, adaptive routing, batch-level parallelism, and memory-reuse strategies.</p>
+          </article>
+          <article class="tile highlight">
+            <h3>More experiments</h3>
+            <p>This is the beginning of the utility, not the final answer. I will continue experimenting to see what else I can discover.</p>
+          </article>
+        </div>
+        <div class="bars-demo" id="barsDemo" aria-label="Animated sorting bars"></div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="nav">
+        <button id="prevSlide">Back</button>
+        <button class="primary" id="nextSlide">Next</button>
+      </div>
+      <div class="progress" aria-hidden="true"><span id="progress"></span></div>
+    </footer>
+  </div>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const slideNow = document.querySelector("#slideNow");
+    const slideTotal = document.querySelector("#slideTotal");
+    const progress = document.querySelector("#progress");
+    const prevSlide = document.querySelector("#prevSlide");
+    const nextSlide = document.querySelector("#nextSlide");
+    const barsDemo = document.querySelector("#barsDemo");
+    const runBench = document.querySelector("#runBench");
+    const benchSize = document.querySelector("#benchSize");
+    const benchSeconds = document.querySelector("#benchSeconds");
+    const radixOut = document.querySelector("#radixOut");
+    const nativeOut = document.querySelector("#nativeOut");
+    const winnerOut = document.querySelector("#winnerOut");
+    const radixFill = document.querySelector("#radixFill");
+    const nativeFill = document.querySelector("#nativeFill");
+    const winnerFill = document.querySelector("#winnerFill");
+
+    let slideIndex = 0;
+    let demoTick = 0;
+    const demoValues = [7, 3, 9, 1, 6, 2, 8, 4, 5, 10, 12, 11];
+
+    slideTotal.textContent = String(slides.length);
+
+    function showSlide(index) {
+      slideIndex = (index + slides.length) % slides.length;
+      slides.forEach((slide, i) => slide.classList.toggle("active", i === slideIndex));
+      slideNow.textContent = String(slideIndex + 1);
+      progress.style.setProperty("--progress", `${((slideIndex + 1) / slides.length) * 100}%`);
+    }
+
+    prevSlide.addEventListener("click", () => showSlide(slideIndex - 1));
+    nextSlide.addEventListener("click", () => showSlide(slideIndex + 1));
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") showSlide(slideIndex + 1);
+      if (event.key === "ArrowLeft") showSlide(slideIndex - 1);
+    });
+
+    function renderBars() {
+      const sortedAt = Math.min(demoTick, demoValues.length);
+      const visible = [...demoValues];
+      const prefix = visible.slice(0, sortedAt).sort((a, b) => a - b);
+      for (let i = 0; i < prefix.length; i++) visible[i] = prefix[i];
+
+      barsDemo.innerHTML = "";
+      visible.forEach((value, index) => {
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        if (index === sortedAt) bar.classList.add("hot");
+        if (index < sortedAt) bar.classList.add("done");
+        bar.style.height = `${18 + value * 6}%`;
+        barsDemo.append(bar);
+      });
+      demoTick = demoTick >= demoValues.length ? 0 : demoTick + 1;
+    }
+
+    setInterval(renderBars, 900);
+    renderBars();
+    showSlide(0);
+
+    function makeRandomInt32(size, seed) {
+      const data = new Int32Array(size);
+      let x = seed >>> 0;
+      for (let i = 0; i < size; i++) {
+        x ^= x << 13;
+        x ^= x >>> 17;
+        x ^= x << 5;
+        data[i] = x | 0;
+      }
+      return data;
+    }
+
+    function radix16SortInt32(data, scratch, lowCount, highCount) {
+      lowCount.fill(0);
+      highCount.fill(0);
+
+      for (let i = 0; i < data.length; i++) {
+        const key = (data[i] ^ 0x80000000) >>> 0;
+        lowCount[key & 0xffff]++;
+        highCount[key >>> 16]++;
+      }
+
+      let sum = 0;
+      for (let i = 0; i < lowCount.length; i++) {
+        const next = sum + lowCount[i];
+        lowCount[i] = sum;
+        sum = next;
+      }
+
+      for (let i = 0; i < data.length; i++) {
+        const value = data[i];
+        const key = (value ^ 0x80000000) >>> 0;
+        scratch[lowCount[key & 0xffff]++] = value;
+      }
+
+      sum = 0;
+      for (let i = 0; i < highCount.length; i++) {
+        const next = sum + highCount[i];
+        highCount[i] = sum;
+        sum = next;
+      }
+
+      for (let i = 0; i < scratch.length; i++) {
+        const value = scratch[i];
+        const key = (value ^ 0x80000000) >>> 0;
+        data[highCount[key >>> 16]++] = value;
+      }
+    }
+
+    function isSorted(data) {
+      for (let i = 1; i < data.length; i++) {
+        if (data[i - 1] > data[i]) return false;
+      }
+      return true;
+    }
+
+    async function benchmarkOne(name, seconds, base, sorter) {
+      const end = performance.now() + seconds * 1000;
+      const latencies = [];
+      let operations = 0;
+      let ok = true;
+
+      while (performance.now() < end) {
+        const start = performance.now();
+        const data = new Int32Array(base);
+        sorter(data);
+        const stop = performance.now();
+        if (operations % 8 === 0) ok = ok && isSorted(data);
+        latencies.push(stop - start);
+        operations++;
+        if (operations % 8 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      latencies.sort((a, b) => a - b);
+      const elapsedSeconds = seconds;
+      const ips = (operations * base.length) / elapsedSeconds;
+      const median = latencies[Math.floor(latencies.length / 2)] || 0;
+      return { name, operations, ips, median, ok };
+    }
+
+    function formatRate(value) {
+      if (!Number.isFinite(value) || value <= 0) return "not run";
+      return `${(value / 1000000).toFixed(1)}M/s`;
+    }
+
+    function setResult(fill, out, rate, maxRate, median, ok) {
+      fill.style.setProperty("--w", `${Math.max(2, Math.min(100, (rate / maxRate) * 100))}%`);
+      out.textContent = `${formatRate(rate)} | ${median.toFixed(2)} ms | ${ok ? "valid" : "failed"}`;
+    }
+
+    runBench.addEventListener("click", async () => {
+      runBench.disabled = true;
+      runBench.textContent = "Running...";
+      radixOut.textContent = "running";
+      nativeOut.textContent = "waiting";
+      winnerOut.textContent = "waiting";
+      radixFill.style.setProperty("--w", "4%");
+      nativeFill.style.setProperty("--w", "0%");
+      winnerFill.style.setProperty("--w", "0%");
+
+      const size = Number(benchSize.value);
+      const seconds = Number(benchSeconds.value);
+      const base = makeRandomInt32(size, 0xc0ffee);
+      const scratch = new Int32Array(size);
+      const lowCount = new Uint32Array(65536);
+      const highCount = new Uint32Array(65536);
+
+      const radix = await benchmarkOne("JS radix16", seconds, base, (data) => {
+        radix16SortInt32(data, scratch, lowCount, highCount);
+      });
+
+      radixOut.textContent = "done";
+      nativeOut.textContent = "running";
+
+      const native = await benchmarkOne("Int32Array.sort", seconds, base, (data) => {
+        data.sort();
+      });
+
+      const maxRate = Math.max(radix.ips, native.ips);
+      setResult(radixFill, radixOut, radix.ips, maxRate, radix.median, radix.ok);
+      setResult(nativeFill, nativeOut, native.ips, maxRate, native.median, native.ok);
+
+      const winner = radix.ips >= native.ips ? radix : native;
+      const loser = radix.ips >= native.ips ? native : radix;
+      const ratio = loser.ips > 0 ? winner.ips / loser.ips : 0;
+      winnerFill.style.setProperty("--w", "100%");
+      winnerOut.textContent = `${winner.name} by ${ratio.toFixed(2)}x`;
+
+      runBench.disabled = false;
+      runBench.textContent = "Run Browser Benchmark";
+    });
+  </script>
+</body>
+</html>

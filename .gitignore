@@ -1,0 +1,5 @@
+bench_sort
+*.o
+*.out
+core
+core.*
