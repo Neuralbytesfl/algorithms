@@ -7,10 +7,12 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <numeric>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -38,6 +40,13 @@ struct Result {
 struct MemoryStatus {
     std::size_t rss_kb = 0;
     std::size_t hwm_kb = 0;
+};
+
+struct Record {
+    std::int64_t key;
+    std::uint32_t category;
+    double score;
+    std::array<char, 24> label;
 };
 
 static void insertion_sort_range(std::vector<int>& a, std::size_t lo, std::size_t hi) {
@@ -588,6 +597,89 @@ static void radix_sort_i32_16bit_pool4(std::vector<int>& a) {
     pool.sort(a);
 }
 
+static void radix_sort_i64_16bit(std::vector<std::int64_t>& a) {
+    constexpr std::size_t radix = 1u << 16u;
+    thread_local std::vector<std::int64_t> tmp;
+    thread_local std::vector<std::size_t> count;
+
+    tmp.resize(a.size());
+    count.resize(radix);
+
+    for (unsigned shift : {0u, 16u, 32u, 48u}) {
+        std::fill(count.begin(), count.end(), 0);
+
+        for (std::int64_t value : a) {
+            const std::uint64_t key = static_cast<std::uint64_t>(value) ^ 0x8000000000000000ull;
+            ++count[(key >> shift) & 0xFFFFull];
+        }
+
+        std::size_t sum = 0;
+        for (std::size_t i = 0; i < radix; ++i) {
+            const std::size_t next = sum + count[i];
+            count[i] = sum;
+            sum = next;
+        }
+
+        for (std::int64_t value : a) {
+            const std::uint64_t key = static_cast<std::uint64_t>(value) ^ 0x8000000000000000ull;
+            tmp[count[(key >> shift) & 0xFFFFull]++] = value;
+        }
+
+        a.swap(tmp);
+    }
+}
+
+static void adaptive_i64_sort(std::vector<std::int64_t>& a) {
+    if (a.size() < 2) return;
+
+    bool ascending = true;
+    bool descending = true;
+    for (std::size_t i = 1; i < a.size(); ++i) {
+        ascending = ascending && a[i - 1] <= a[i];
+        descending = descending && a[i - 1] >= a[i];
+    }
+
+    if (ascending) return;
+    if (descending) {
+        std::reverse(a.begin(), a.end());
+        return;
+    }
+
+    radix_sort_i64_16bit(a);
+}
+
+static void radix_sort_records_by_key(std::vector<Record>& a) {
+    constexpr std::size_t radix = 1u << 16u;
+    thread_local std::vector<Record> tmp;
+    thread_local std::vector<std::size_t> count;
+
+    tmp.resize(a.size());
+    count.resize(radix);
+
+    for (unsigned shift : {0u, 16u, 32u, 48u}) {
+        std::fill(count.begin(), count.end(), 0);
+
+        for (const Record& value : a) {
+            const std::uint64_t key = static_cast<std::uint64_t>(value.key) ^ 0x8000000000000000ull;
+            ++count[(key >> shift) & 0xFFFFull];
+        }
+
+        std::size_t sum = 0;
+        for (std::size_t i = 0; i < radix; ++i) {
+            const std::size_t next = sum + count[i];
+            count[i] = sum;
+            sum = next;
+        }
+
+        for (const Record& value : a) {
+            const std::uint64_t key = static_cast<std::uint64_t>(value.key) ^ 0x8000000000000000ull;
+            tmp[count[(key >> shift) & 0xFFFFull]++] = value;
+        }
+
+        a.swap(tmp);
+    }
+}
+
 static void counting_sort_known_range(std::vector<int>& a, int min_value, int max_value) {
     const std::uint64_t range = static_cast<std::uint64_t>(
         static_cast<std::int64_t>(max_value) - static_cast<std::int64_t>(min_value)) + 1;
@@ -813,6 +905,76 @@ static std::vector<int> few_unique_data(std::size_t n, std::uint32_t seed) {
     return data;
 }
 
+static std::vector<std::int64_t> random_i64_data(std::size_t n, std::uint32_t seed) {
+    std::mt19937_64 rng(seed);
+    std::uniform_int_distribution<std::int64_t> dist(
+        std::numeric_limits<std::int64_t>::min(),
+        std::numeric_limits<std::int64_t>::max());
+    std::vector<std::int64_t> data(n);
+    for (std::int64_t& value : data) value = dist(rng);
+    return data;
+}
+
+static std::vector<std::int64_t> sorted_i64_data(std::size_t n) {
+    std::vector<std::int64_t> data(n);
+    for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<std::int64_t>(i);
+    return data;
+}
+
+static std::vector<std::int64_t> reverse_i64_data(std::size_t n) {
+    std::vector<std::int64_t> data(n);
+    for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<std::int64_t>(n - i);
+    return data;
+}
+
+static std::vector<std::int64_t> few_unique_i64_data(std::size_t n, std::uint32_t seed) {
+    std::mt19937_64 rng(seed);
+    std::uniform_int_distribution<std::int64_t> dist(-8, 8);
+    std::vector<std::int64_t> data(n);
+    for (std::int64_t& value : data) value = dist(rng);
+    return data;
+}
+
+static std::vector<Record> record_data(std::size_t n, std::uint32_t seed) {
+    std::mt19937_64 rng(seed);
+    std::uniform_int_distribution<std::int64_t> key_dist(-1000000000000ll, 1000000000000ll);
+    std::uniform_int_distribution<std::uint32_t> category_dist(0, 255);
+    std::uniform_real_distribution<double> score_dist(0.0, 1.0);
+    std::vector<Record> data(n);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        Record item{};
+        item.key = key_dist(rng);
+        item.category = category_dist(rng);
+        item.score = score_dist(rng);
+        const std::string label = "item-" + std::to_string(rng());
+        std::copy_n(label.begin(), std::min(label.size(), item.label.size() - 1), item.label.begin());
+        data[i] = item;
+    }
+
+    return data;
+}
+
+static std::vector<std::string> string_data(std::size_t n, std::uint32_t seed) {
+    std::mt19937 rng(seed);
+    std::uniform_int_distribution<int> len_dist(8, 28);
+    std::uniform_int_distribution<int> char_dist(0, 25);
+    std::vector<std::string> data;
+    data.reserve(n);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        std::string value;
+        const int len = len_dist(rng);
+        value.reserve(static_cast<std::size_t>(len));
+        for (int j = 0; j < len; ++j) {
+            value.push_back(static_cast<char>('a' + char_dist(rng)));
+        }
+        data.push_back(std::move(value));
+    }
+
+    return data;
+}
+
 static double median(std::vector<double> values) {
     std::sort(values.begin(), values.end());
     return values[values.size() / 2];
@@ -896,6 +1058,151 @@ static Result benchmark(std::string_view name, std::string_view dataset,
     }
 
     return {std::string(name), std::string(dataset), input.size(), median(times), ok};
+}
+
+template <typename T, typename Sorted>
+static Result benchmark_typed(std::string_view name, std::string_view dataset,
+                              const std::vector<T>& input,
+                              const std::function<void(std::vector<T>&)>& sorter,
+                              int rounds,
+                              Sorted sorted) {
+    std::vector<double> times;
+    times.reserve(static_cast<std::size_t>(rounds));
+    bool ok = true;
+
+    for (int round = 0; round < rounds; ++round) {
+        std::vector<T> data = input;
+        const auto start = Clock::now();
+        sorter(data);
+        const auto stop = Clock::now();
+        ok = ok && sorted(data);
+        times.push_back(std::chrono::duration<double, std::milli>(stop - start).count());
+    }
+
+    return {std::string(name), std::string(dataset), input.size(), median(times), ok};
+}
+
+static void print_header(std::size_t n, int rounds, std::string_view mode) {
+    std::cout << "mode=" << mode << " n=" << n << " rounds=" << rounds << "\n";
+    std::cout << std::left
+              << std::setw(16) << "dataset"
+              << std::setw(18) << "algorithm"
+              << std::right
+              << std::setw(12) << "median_ms"
+              << std::setw(10) << "sorted"
+              << "\n";
+}
+
+static void print_result(const Result& result) {
+    std::cout << std::left
+              << std::setw(16) << result.dataset
+              << std::setw(18) << result.name
+              << std::right
+              << std::setw(12) << std::fixed << std::setprecision(3) << result.median_ms
+              << std::setw(10) << (result.sorted ? "yes" : "no")
+              << "\n";
+}
+
+static int run_i64_benchmark(std::size_t n, int rounds) {
+    constexpr std::uint32_t seed = 0xC0FFEE;
+    const std::vector<std::pair<std::string, std::vector<std::int64_t>>> datasets = {
+        {"random64", random_i64_data(n, seed)},
+        {"sorted64", sorted_i64_data(n)},
+        {"reverse64", reverse_i64_data(n)},
+        {"few_unique64", few_unique_i64_data(n, seed)}
+    };
+    const std::vector<std::pair<std::string, std::function<void(std::vector<std::int64_t>&)>>> algorithm_list = {
+        {"radix64_16bit", radix_sort_i64_16bit},
+        {"adaptive_i64", adaptive_i64_sort},
+        {"std_stable_sort", [](std::vector<std::int64_t>& a) { std::stable_sort(a.begin(), a.end()); }},
+        {"std_sort", [](std::vector<std::int64_t>& a) { std::sort(a.begin(), a.end()); }}
+    };
+    const auto sorted = [](const std::vector<std::int64_t>& data) {
+        return std::is_sorted(data.begin(), data.end());
+    };
+
+    print_header(n, rounds, "i64");
+    for (const auto& [dataset_name, input] : datasets) {
+        for (const auto& [algorithm_name, sorter] : algorithm_list) {
+            print_result(benchmark_typed(algorithm_name, dataset_name, input, sorter, rounds, sorted));
+        }
+        std::cout << "\n";
+    }
+
+    return 0;
+}
+
+static int run_object_benchmark(std::size_t n, int rounds) {
+    constexpr std::uint32_t seed = 0xC0FFEE;
+    const std::vector<std::pair<std::string, std::vector<Record>>> record_datasets = {
+        {"records_key", record_data(n, seed)}
+    };
+    const std::vector<std::pair<std::string, std::function<void(std::vector<Record>&)>>> record_algorithms = {
+        {"radix_key64", radix_sort_records_by_key},
+        {"std_sort_key", [](std::vector<Record>& a) {
+             std::sort(a.begin(), a.end(), [](const Record& lhs, const Record& rhs) {
+                 return lhs.key < rhs.key;
+             });
+         }},
+        {"std_stable_key", [](std::vector<Record>& a) {
+             std::stable_sort(a.begin(), a.end(), [](const Record& lhs, const Record& rhs) {
+                 return lhs.key < rhs.key;
+             });
+         }},
+        {"std_sort_multi", [](std::vector<Record>& a) {
+             std::sort(a.begin(), a.end(), [](const Record& lhs, const Record& rhs) {
+                 if (lhs.category != rhs.category) return lhs.category < rhs.category;
+                 if (lhs.score != rhs.score) return lhs.score < rhs.score;
+                 return lhs.key < rhs.key;
+             });
+         }}
+    };
+    const auto records_sorted = [](const std::vector<Record>& data) {
+        return std::is_sorted(data.begin(), data.end(), [](const Record& lhs, const Record& rhs) {
+            return lhs.key < rhs.key;
+        });
+    };
+    const auto records_multi_sorted = [](const std::vector<Record>& data) {
+        return std::is_sorted(data.begin(), data.end(), [](const Record& lhs, const Record& rhs) {
+            if (lhs.category != rhs.category) return lhs.category < rhs.category;
+            if (lhs.score != rhs.score) return lhs.score < rhs.score;
+            return lhs.key < rhs.key;
+        });
+    };
+
+    print_header(n, rounds, "objects");
+    for (const auto& [dataset_name, input] : record_datasets) {
+        for (const auto& [algorithm_name, sorter] : record_algorithms) {
+            if (algorithm_name == "std_sort_multi") {
+                print_result(benchmark_typed(algorithm_name, dataset_name, input, sorter, rounds,
+                                             records_multi_sorted));
+            } else {
+                print_result(benchmark_typed(algorithm_name, dataset_name, input, sorter, rounds,
+                                             records_sorted));
+            }
+        }
+        std::cout << "\n";
+    }
+
+    const std::vector<std::pair<std::string, std::vector<std::string>>> string_datasets = {
+        {"strings", string_data(n, seed)}
+    };
+    const std::vector<std::pair<std::string, std::function<void(std::vector<std::string>&)>>> string_algorithms = {
+        {"std_sort", [](std::vector<std::string>& a) { std::sort(a.begin(), a.end()); }},
+        {"std_stable_sort", [](std::vector<std::string>& a) { std::stable_sort(a.begin(), a.end()); }}
+    };
+    const auto strings_sorted = [](const std::vector<std::string>& data) {
+        return std::is_sorted(data.begin(), data.end());
+    };
+
+    for (const auto& [dataset_name, input] : string_datasets) {
+        for (const auto& [algorithm_name, sorter] : string_algorithms) {
+            print_result(benchmark_typed(algorithm_name, dataset_name, input, sorter, rounds, strings_sorted));
+        }
+        std::cout << "\n";
+    }
+
+    return 0;
 }
 
 static int run_stress(int argc, char** argv) {
@@ -993,6 +1300,27 @@ int main(int argc, char** argv) {
         return run_stress(argc, argv);
     }
 
+    if (argc > 1 && std::string_view(argv[1]) == "i64") {
+        const std::size_t n = argc > 2 ? static_cast<std::size_t>(std::stoull(argv[2])) : 200000;
+        const int rounds = argc > 3 ? std::stoi(argv[3]) : 7;
+        return run_i64_benchmark(n, rounds);
+    }
+
+    if (argc > 1 && std::string_view(argv[1]) == "objects") {
+        const std::size_t n = argc > 2 ? static_cast<std::size_t>(std::stoull(argv[2])) : 100000;
+        const int rounds = argc > 3 ? std::stoi(argv[3]) : 5;
+        return run_object_benchmark(n, rounds);
+    }
+
+    if (argc > 1 && std::string_view(argv[1]) == "all") {
+        const std::size_t n = argc > 2 ? static_cast<std::size_t>(std::stoull(argv[2])) : 100000;
+        const int rounds = argc > 3 ? std::stoi(argv[3]) : 5;
+        int status = 0;
+        status |= run_i64_benchmark(n, rounds);
+        status |= run_object_benchmark(n, rounds);
+        return status;
+    }
+
     const std::size_t n = argc > 1 ? static_cast<std::size_t>(std::stoull(argv[1])) : 200000;
     const int rounds = argc > 2 ? std::stoi(argv[2]) : 7;
     constexpr std::uint32_t seed = 0xC0FFEE;
@@ -1007,25 +1335,11 @@ int main(int argc, char** argv) {
 
     const auto algorithm_list = algorithms();
 
-    std::cout << "n=" << n << " rounds=" << rounds << "\n";
-    std::cout << std::left
-              << std::setw(16) << "dataset"
-              << std::setw(18) << "algorithm"
-              << std::right
-              << std::setw(12) << "median_ms"
-              << std::setw(10) << "sorted"
-              << "\n";
+    print_header(n, rounds, "i32");
 
     for (const auto& [dataset_name, input] : datasets) {
         for (const auto& [algorithm_name, sorter] : algorithm_list) {
-            const Result result = benchmark(algorithm_name, dataset_name, input, sorter, rounds);
-            std::cout << std::left
-                      << std::setw(16) << result.dataset
-                      << std::setw(18) << result.name
-                      << std::right
-                      << std::setw(12) << std::fixed << std::setprecision(3) << result.median_ms
-                      << std::setw(10) << (result.sorted ? "yes" : "no")
-                      << "\n";
+            print_result(benchmark(algorithm_name, dataset_name, input, sorter, rounds));
         }
         std::cout << "\n";
     }
