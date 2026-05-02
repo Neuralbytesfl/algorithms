@@ -47,6 +47,14 @@ On this machine, with:
 g++ -O3 -march=native -std=c++20 -pthread bench_sort.cpp -o bench_sort
 ```
 
+Test machine:
+
+- CPU: 12th Gen Intel Core i7-12700K, 12 cores / 20 threads, up to 5.0 GHz
+- Memory: 31 GiB RAM
+- OS: Linux Mint 22.1 `xia`, kernel `6.8.0-110-generic`
+- Compiler: `g++ 13.3.0`
+- GPU present but not used by this CPU benchmark: NVIDIA GeForce RTX 4080 SUPER, 16 GiB VRAM
+
 The 60-second utility stress test on 1,000,000 random integers per batch measured:
 
 ```text
