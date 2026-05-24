@@ -1,4 +1,4 @@
-# Meta AI Workspace
+# Cognitive AI Workspace
 
 Persistent experimentation layer for:
 
@@ -13,7 +13,7 @@ Persistent experimentation layer for:
 ## Directory Layout
 
 ```text
-/meta-ai
+/cognitive-ai
     /datasets
     /evals
     /memory
