@@ -1,0 +1,11 @@
+{
+  "task": "basic_compute_task",
+  "timestamp": "2026-05-24T19:10:00Z",
+  "iterations": 1000000,
+  "result": 47999861,
+  "elapsed_seconds": 0.0842,
+  "environment": {
+    "runtime": "python",
+    "purpose": "compute benchmark example"
+  }
+}
