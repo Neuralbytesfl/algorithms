@@ -1,0 +1,18 @@
+{
+  "task_id": "basic_compute_0001",
+  "task_type": "benchmark",
+  "executor": "python_local",
+  "inputs": {
+    "script": "meta-ai/test/basic_compute_task.py"
+  },
+  "constraints": {
+    "max_seconds": 60
+  },
+  "safety": {
+    "allow_shell": false,
+    "allow_network": false,
+    "allow_subprocess": false,
+    "allow_file_delete": false,
+    "allow_outside_workspace_write": false
+  }
+}
